@@ -54,14 +54,14 @@ def run_bot():
     print("🟢 Бот запускается...")
     try:
         bot.remove_webhook()
-        bot.set_webhook(url=f"https://{os.getenv('REPL_SLUG')}.{os.getenv('REPL_OWNER')}.repl.co/webhook")
-        print("🤖 Бот успешно запущен!")
+        # Для разработки используем polling вместо webhook
+        print("🤖 Бот запущен в режиме polling!")
+        bot.polling(none_stop=True)
     except Exception as e:
         print(f"🔴 Ошибка запуска: {e}")
 
-# Потоки
-threading.Thread(target=run_bot, daemon=True).start()
-keep_alive()
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    # Запускаем keep-alive сервер в отдельном потоке
+    keep_alive()
+    # Запускаем бота
+    run_bot()
