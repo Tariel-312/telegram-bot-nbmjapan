@@ -61,7 +61,7 @@ class GoogleSheetsManager:
             
             updated_rows = result.get('updates', {}).get('updatedRows', 0)
             print(f"✅ Клиент успешно добавлен. Обновлено строк: {updated_rows}")
-            return True, f"Клиент добавлен в строку {updated_rows}"
+            return True, "Добро пожаловать в команду NBM Japan! Мы рады видеть вас среди наших клиентов! 🎉"
             
         except Exception as e:
             print(f"❌ Ошибка при добавлении в Google Sheets: {str(e)}")
