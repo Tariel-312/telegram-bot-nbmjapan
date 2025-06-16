@@ -102,12 +102,12 @@ def handle_all_messages(message):
         elif state['step'] == 'last_name':
             state['last_name'] = text
             state['step'] = 'phone'
-            bot.send_message(message.chat.id, "Введите ваш номер телефона (например: +7 900 123-45-67):", reply_markup=create_cancel_keyboard())
+            bot.send_message(message.chat.id, "Введите ваш номер телефона (например: +996 000 000 000):", reply_markup=create_cancel_keyboard())
             
         elif state['step'] == 'phone':
             state['phone'] = text
             state['step'] = 'city'
-            bot.send_message(message.chat.id, "Введите ваш город/село:", reply_markup=create_cancel_keyboard())
+            bot.send_message(message.chat.id, "Введите ваш город:", reply_markup=create_cancel_keyboard())
             
         elif state['step'] == 'city':
             state['city'] = text
