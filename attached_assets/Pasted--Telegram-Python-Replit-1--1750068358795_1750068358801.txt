@@ -1,0 +1,137 @@
+Настроить Telegram-бота на Python с вебхуком в Replit. Требования:
+
+1. Основной функционал:
+- Обработка команды /start с приветствием
+- Ответ на любое текстовое сообщение эхом
+- Кнопка "Мой профиль" с выводом информации о пользователе
+
+2. Технические требования:
+- Использовать библиотеку pyTelegramBotAPI (telebot)
+- Flask для обработки вебхуков
+- Два параллельных потока: для бота и keep-alive сервера
+- Переменные окружения для токена бота
+
+3. Структура проекта:
+my-telegram-bot/
+├── main.py
+├── requirements.txt
+├── keepalive.py
+└── .env (опционально)
+
+text
+
+4. Код для main.py:
+```python
+import os
+import threading
+from flask import Flask, request
+import telebot
+from telebot.types import ReplyKeyboardMarkup
+from keepalive import keep_alive
+
+app = Flask(__name__)
+bot = telebot.TeleBot(os.getenv('TELEGRAM_TOKEN'))
+
+# Клавиатура
+def create_keyboard():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("Мой профиль")
+    return markup
+
+# Обработчики
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "Привет! Я бот на Replit!", reply_markup=create_keyboard())
+
+@bot.message_handler(func=lambda m: True)
+def echo_all(message):
+    if message.text == "Мой профиль":
+        user = message.from_user
+        bot.reply_to(message, 
+                    f"📌 Ваш профиль:\n"
+                    f"ID: {user.id}\n"
+                    f"Имя: {user.first_name}\n"
+                    f"Юзернейм: @{user.username}")
+    else:
+        bot.reply_to(message, f"Вы написали: {message.text}")
+
+# Вебхук
+@app.route('/' + os.getenv('TELEGRAM_TOKEN'), methods=['POST'])
+def webhook():
+    update = telebot.types.Update.de_json(request.stream.read().decode('utf-8'))
+    bot.process_new_updates([update])
+    return "OK", 200
+
+# Запуск
+def run_bot():
+    bot.remove_webhook()
+    bot.set_webhook(url=f"https://{os.getenv('REPL_SLUG')}.{os.getenv('REPL_OWNER')}.repl.co/{os.getenv('TELEGRAM_TOKEN')}")
+    print("Бот запущен!")
+
+threading.Thread(target=run_bot).start()
+keep_alive()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+Код для keepalive.py:
+
+python
+from flask import Flask
+import threading
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Бот активен!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = threading.Thread(target=run)
+    t.daemon = True
+    t.start()
+requirements.txt:
+
+text
+flask==2.3.2
+pytelegrambotapi==4.14.0
+python-dotenv==1.0.0
+Инструкция по настройке:
+
+Создать новый Python-реплит
+
+Добавить токен бота в Secrets (ключ TELEGRAM_TOKEN)
+
+Скопировать указанные файлы в проект
+
+Запустить бота кнопкой Run
+
+Настроить вебхук командой в браузере:
+https://api.telegram.org/botТОКЕН/setWebhook?url=https://ИМЯ_РЕПЛИТА.ЮЗЕРНЕЙМ.repl.co/ТОКЕН
+
+Для 24/7 работы добавить мониторинг в UptimeRobot
+
+Дополнительно:
+
+Добавить обработку ошибок
+
+Реализовать логирование в файл
+
+Возможность отключения клавиатуры
+
+text
+
+---
+
+**Как использовать:**
+1. Откройте чат с ботом Replit в правой панели
+2. Скопируйте весь текст выше
+3. Вставьте в чат и отправьте
+4. Бот предложит создать файлы автоматически или даст уточняющие вопросы
+
+**Что можно уточнить дополнительно:**
+- Нужна ли база данных (Replit DB/Firebase)
+- Требуется ли развертывание на другом сервисе
+- Необходимость дополнительных команд бота
