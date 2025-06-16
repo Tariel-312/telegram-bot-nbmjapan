@@ -106,12 +106,18 @@ def handle_all_messages(message):
             
         elif state['step'] == 'phone':
             state['phone'] = text
+            state['step'] = 'city'
+            bot.send_message(message.chat.id, "Введите ваш город/село:", reply_markup=create_cancel_keyboard())
+            
+        elif state['step'] == 'city':
+            state['city'] = text
             
             # Завершаем регистрацию и добавляем в Google Sheets
             success, msg = sheets_manager.add_client(
                 state['first_name'],
                 state['last_name'], 
                 state['phone'],
+                state['city'],
                 str(user_id)
             )
             
@@ -121,7 +127,8 @@ def handle_all_messages(message):
                     f"📋 Ваши данные:\n"
                     f"Имя: {state['first_name']}\n"
                     f"Фамилия: {state['last_name']}\n"
-                    f"Телефон: {state['phone']}\n\n"
+                    f"Телефон: {state['phone']}\n"
+                    f"Город/Село: {state['city']}\n\n"
                     f"🗃️ {msg}",
                     reply_markup=create_keyboard())
             else:
@@ -130,7 +137,8 @@ def handle_all_messages(message):
                     f"📋 Ваши данные:\n"
                     f"Имя: {state['first_name']}\n"
                     f"Фамилия: {state['last_name']}\n"
-                    f"Телефон: {state['phone']}\n\n"
+                    f"Телефон: {state['phone']}\n"
+                    f"Город/Село: {state['city']}\n\n"
                     f"⚠️ Ошибка записи в таблицу: {msg}",
                     reply_markup=create_keyboard())
             
