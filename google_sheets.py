@@ -11,10 +11,18 @@ class GoogleSheetsManager:
         self.spreadsheet_id = os.getenv('GOOGLE_SPREADSHEET_ID', '')
         self.sheet_name = os.getenv('GOOGLE_SHEET_NAME', 'Клиенты')
         
-        if not self.service_account_info or not self.spreadsheet_id:
-            print("⚠️ Google Sheets не настроен. Добавьте GOOGLE_SERVICE_ACCOUNT_JSON и GOOGLE_SPREADSHEET_ID в Secrets")
+        if not self.service_account_info:
+            print("⚠️ GOOGLE_SERVICE_ACCOUNT_JSON не найден в переменных окружения")
             self.service = None
             return
+        
+        if not self.spreadsheet_id:
+            print("⚠️ GOOGLE_SPREADSHEET_ID не найден в переменных окружения")
+            self.service = None
+            return
+        
+        print(f"📊 Подключаемся к таблице: {self.spreadsheet_id}")
+        print(f"📄 Лист: {self.sheet_name}")
             
         try:
             credentials = Credentials.from_service_account_info(
@@ -33,6 +41,8 @@ class GoogleSheetsManager:
             return False, "Google Sheets не настроен"
         
         try:
+            print(f"📝 Добавляем клиента: {first_name} {last_name}, {phone}")
+            
             # Подготавливаем данные для добавления
             values = [[first_name, last_name, phone, telegram_id]]
             
@@ -49,9 +59,12 @@ class GoogleSheetsManager:
                 body=body
             ).execute()
             
-            return True, f"Клиент добавлен в строку {result.get('updates', {}).get('updatedRows', 0)}"
+            updated_rows = result.get('updates', {}).get('updatedRows', 0)
+            print(f"✅ Клиент успешно добавлен. Обновлено строк: {updated_rows}")
+            return True, f"Клиент добавлен в строку {updated_rows}"
             
         except Exception as e:
+            print(f"❌ Ошибка при добавлении в Google Sheets: {str(e)}")
             return False, f"Ошибка при добавлении в таблицу: {str(e)}"
     
     def setup_headers(self):

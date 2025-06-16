@@ -55,6 +55,31 @@ def setup_sheets_headers(message):
     else:
         bot.send_message(message.chat.id, f"❌ {msg}")
 
+@bot.message_handler(commands=['check_sheets'])
+def check_sheets_config(message):
+    """Команда для проверки настроек Google Sheets"""
+    config_status = []
+    
+    # Проверяем переменные окружения
+    if os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON'):
+        config_status.append("✅ GOOGLE_SERVICE_ACCOUNT_JSON настроен")
+    else:
+        config_status.append("❌ GOOGLE_SERVICE_ACCOUNT_JSON не найден")
+    
+    if os.getenv('GOOGLE_SPREADSHEET_ID'):
+        config_status.append(f"✅ GOOGLE_SPREADSHEET_ID: {os.getenv('GOOGLE_SPREADSHEET_ID')}")
+    else:
+        config_status.append("❌ GOOGLE_SPREADSHEET_ID не найден")
+    
+    # Проверяем подключение
+    if sheets_manager.service:
+        config_status.append("✅ Google Sheets API подключен")
+    else:
+        config_status.append("❌ Google Sheets API не подключен")
+    
+    response = "🔍 Проверка настроек Google Sheets:\n\n" + "\n".join(config_status)
+    bot.send_message(message.chat.id, response)
+
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
     user_id = message.from_user.id
@@ -131,7 +156,8 @@ def handle_all_messages(message):
             "ℹ️ Доступные функции:\n\n"
             "🔹 Мой профиль - информация о вашем аккаунте\n"
             "🔹 Регистрация - регистрация в системе карго\n"
-            "🔹 /setup_sheets - настройка заголовков таблицы\n\n"
+            "🔹 /setup_sheets - настройка заголовков таблицы\n"
+            "🔹 /check_sheets - проверка настроек Google Sheets\n\n"
             "Для начала работы используйте команду /start")
     else:
         bot.send_message(message.chat.id, f"🔹 Вы написали: {text}")
