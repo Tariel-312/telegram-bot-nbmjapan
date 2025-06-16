@@ -35,7 +35,7 @@ class GoogleSheetsManager:
             print(f"❌ Ошибка подключения к Google Sheets: {e}")
             self.service = None
     
-    def add_client(self, first_name, last_name, phone, city, telegram_id):
+    def add_client(self, first_name, last_name, phone, city, comments, telegram_id):
         """Добавляет клиента в Google Sheets"""
         if not self.service:
             return False, "Google Sheets не настроен"
@@ -44,7 +44,7 @@ class GoogleSheetsManager:
             print(f"📝 Добавляем клиента: {first_name} {last_name}, {phone}, {city}")
             
             # Подготавливаем данные для добавления
-            values = [[first_name, last_name, phone, city, telegram_id]]
+            values = [[first_name, last_name, phone, city, comments, telegram_id]]
             
             body = {
                 'values': values
@@ -53,7 +53,7 @@ class GoogleSheetsManager:
             # Добавляем данные в таблицу
             result = self.service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id,
-                range=f'{self.sheet_name}!A:E',
+                range=f'{self.sheet_name}!A:F',
                 valueInputOption='RAW',
                 insertDataOption='INSERT_ROWS',
                 body=body
@@ -73,7 +73,7 @@ class GoogleSheetsManager:
             return False, "Google Sheets не настроен"
         
         try:
-            headers = [['Имя', 'Фамилия', 'Телефон', 'Город/Село', 'Telegram ID']]
+            headers = [['Имя', 'Фамилия', 'Телефон', 'Город/Село', 'Комментарии', 'Telegram ID']]
             
             body = {
                 'values': headers
@@ -81,7 +81,7 @@ class GoogleSheetsManager:
             
             result = self.service.spreadsheets().values().update(
                 spreadsheetId=self.spreadsheet_id,
-                range=f'{self.sheet_name}!A1:E1',
+                range=f'{self.sheet_name}!A1:F1',
                 valueInputOption='RAW',
                 body=body
             ).execute()
