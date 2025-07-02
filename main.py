@@ -1,11 +1,11 @@
-
 import os
 import threading
 from flask import Flask, request
 import telebot
-from telebot.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telebot.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
 from keepalive import keep_alive
 from google_sheets import GoogleSheetsManager
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -21,9 +21,15 @@ user_states = {}
 
 # Клавиатура
 def create_keyboard():
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-    markup.add("Регистрация клиента", "Мой профиль")
-    markup.add("Связаться с нами", "Помощь")
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False, row_width=2)
+    buttons = [
+        KeyboardButton("Регистрация клиента"),
+        KeyboardButton("Мой профиль"),
+        KeyboardButton("Проверить статус"),
+        KeyboardButton("Связаться с нами"),
+        KeyboardButton("Помощь")
+    ]
+    markup.add(*buttons)
     return markup
 
 def create_cancel_keyboard():
@@ -34,16 +40,78 @@ def create_cancel_keyboard():
 # Обработчики
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🚛 Добро пожаловать в NBM Japan!\n"
-                 "🌏 Ваша надежная карго компания для доставки из Японии\n\n"
-                 "📦 Мы доставляем товары быстро и безопасно\n"
-                 "🎌 Прямые поставки из Японии\n\n"
-                 "Выберите действие:", reply_markup=create_keyboard())
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="🚛 Добро пожаловать в NBM Japan!\n"
+             "🌏 Ваша надежная карго компания для доставки из Японии\n\n"
+             "📦 Мы доставляем товары быстро и безопасно\n"
+             "🎌 Прямые поставки из Японии\n\n"
+             "Выберите действие:",
+        reply_markup=create_keyboard()
+    )
 
-@bot.message_handler(commands=['register'])
+@bot.message_handler(func=lambda message: message.text == "Проверить статус")
+def handle_status_check(message):
+    """Обработчик для проверки статуса заказа"""
+    # Проверяем, зарегистрирован ли пользователь
+    if not sheets_manager.client_exists(str(message.from_user.id)):
+        bot.send_message(message.chat.id, "❌ Вы еще не зарегистрированы.", reply_markup=create_keyboard())
+        return
+    
+    status_info = sheets_manager.get_client_status(str(message.from_user.id))
+    
+    if not status_info:
+        bot.send_message(message.chat.id, "❌ Информация о статусе недоступна.")
+        return
+    
+    status = status_info.get('status', 'неизвестен')
+    last_updated = status_info.get('last_updated', 'не указана')
+    comment = status_info.get('comment', 'нет комментариев')
+    
+    # Формируем понятное описание статуса
+    status_descriptions = {
+        "В обработке": "🔄 Ваш заказ находится в обработке",
+        "Отправлен": "🚢 Ваш заказ отправлен из Японии",
+        "В пути": "✈️ Ваш заказ в пути",
+        "Прибыл": "✅ Ваш заказ прибыл в пункт выдачи",
+        "Готов к выдаче": "📦 Заказ готов к выдаче",
+        "Выдан": "🎉 Заказ получен"
+    }
+    
+    description = status_descriptions.get(status, f"Статус: {status}")
+    
+    # Формируем сообщение
+    response = (
+        f"📦 Статус вашего заказа:\n\n"
+        f"{description}\n\n"
+        #f"📅 Последнее обновление: {last_updated}\n"
+        #f"📝 Комментарий: {comment}\n\n"
+        f"Для уточнения деталей нажмите «Связаться с нами»"
+    )
+    
+    bot.send_message(message.chat.id, response, reply_markup=create_keyboard())
+
+@bot.message_handler(func=lambda message: message.text == "Регистрация клиента")
 def start_registration(message):
+    """Начинает процесс регистрации с проверкой существующего пользователя"""
+    user_id = str(message.from_user.id)
+    
+    # Проверяем, не зарегистрирован ли пользователь уже
+    if sheets_manager.client_exists(user_id):
+        bot.send_message(
+            message.chat.id,
+            "ℹ️ Вы уже зарегистрированы в нашей системе. "
+            "Если вам нужно обновить информацию, пожалуйста, свяжитесь с нами.",
+            reply_markup=create_keyboard()
+        )
+        return
+    
     user_states[message.from_user.id] = {'step': 'first_name'}
-    bot.send_message(message.chat.id, "📝 Начинаем регистрацию!\n\nВведите ваше имя:", reply_markup=create_cancel_keyboard())
+    bot.send_message(
+        message.chat.id, 
+        "📝 Начинаем регистрацию!\n\nВведите ваше имя:", 
+        reply_markup=create_cancel_keyboard()
+    )
 
 @bot.message_handler(commands=['setup_sheets'])
 def setup_sheets_headers(message):
@@ -101,7 +169,11 @@ def handle_all_messages(message):
         elif state['step'] == 'last_name':
             state['last_name'] = text
             state['step'] = 'phone'
-            bot.send_message(message.chat.id, "Введите ваш номер телефона (например: +996 000 000 000):", reply_markup=create_cancel_keyboard())
+            bot.send_message(
+                message.chat.id, 
+                "Введите ваш номер телефона (например: +996 000 000 000):", 
+                reply_markup=create_cancel_keyboard()
+            )
             
         elif state['step'] == 'phone':
             state['phone'] = text
@@ -111,7 +183,11 @@ def handle_all_messages(message):
         elif state['step'] == 'city':
             state['city'] = text
             state['step'] = 'comments'
-            bot.send_message(message.chat.id, "Введите комментарии (пожелания, особые требования к доставке):", reply_markup=create_cancel_keyboard())
+            bot.send_message(
+                message.chat.id, 
+                "Введите комментарии (пожелания, особые требования к доставке):", 
+                reply_markup=create_cancel_keyboard()
+            )
             
         elif state['step'] == 'comments':
             state['comments'] = text
@@ -127,25 +203,27 @@ def handle_all_messages(message):
             )
             
             if success:
-                bot.send_message(message.chat.id, 
+                bot.send_message(
+                    message.chat.id, 
                     f"✅ Регистрация в NBM Japan завершена!\n\n"
                     f"📋 Ваши данные:\n"
                     f"Имя: {state['first_name']}\n"
                     f"Фамилия: {state['last_name']}\n"
                     f"Телефон: {state['phone']}\n"
-                    f"Город/Село: {state['city']}\n"
+                    f"Город: {state['city']}\n"
                     f"Комментарии: {state['comments']}\n\n"
                     f"🗃️ {msg}\n\n"
                     f"📞 Для оформления заказа свяжитесь с нами через кнопку 'Связаться с нами'",
                     reply_markup=create_keyboard())
             else:
-                bot.send_message(message.chat.id, 
+                bot.send_message(
+                    message.chat.id, 
                     f"✅ Регистрация завершена!\n\n"
                     f"📋 Ваши данные:\n"
                     f"Имя: {state['first_name']}\n"
                     f"Фамилия: {state['last_name']}\n"
                     f"Телефон: {state['phone']}\n"
-                    f"Город/Село: {state['city']}\n"
+                    f"Город: {state['city']}\n"
                     f"Комментарии: {state['comments']}\n\n"
                     f"⚠️ Ошибка записи в таблицу: {msg}\n\n"
                     f"📞 Для оформления заказа свяжитесь с нами через кнопку 'Связаться с нами'",
@@ -158,18 +236,31 @@ def handle_all_messages(message):
     # Обычные команды
     if text == "Мой профиль":
         user = message.from_user
-        response = (f"👤 Ваш профиль в NBM Japan:\n"
-                   f"ID: {user.id}\n"
-                   f"Имя: {user.first_name}\n"
-                   f"Фамилия: {user.last_name or 'не указана'}\n"
-                   f"Юзернейм: @{user.username or 'не указан'}")
-        bot.send_message(message.chat.id, response)
+        response = (
+            f"👤 Ваш профиль в NBM Japan:\n"
+            f"ID: {user.id}\n"
+            f"Имя: {user.first_name}\n"
+            f"Фамилия: {user.last_name or 'не указана'}\n"
+            f"Юзернейм: @{user.username or 'не указан'}\n\n"
+        )
         
-    elif text == "Регистрация клиента":
-        start_registration(message)
+        # Добавляем информацию из Google Sheets, если пользователь зарегистрирован
+        if sheets_manager.client_exists(str(user.id)):
+            client_info = sheets_manager.get_client_status(str(user.id))
+            response += (
+                f"📋 Статус вашего заказа:\n"
+                #f"Телефон: {client_info.get('phone', 'не указан')}\n"
+                #f"Город: {client_info.get('city', 'не указан')}\n"
+                f"📦: {client_info.get('status', 'неизвестен')}"
+            )
+        else:
+            response += "ℹ️ Вы еще не зарегистрированы в системе."
+            
+        bot.send_message(message.chat.id, response, reply_markup=create_keyboard())
         
     elif text == "Связаться с нами":
-        bot.send_message(message.chat.id, 
+        bot.send_message(
+            message.chat.id, 
             "📞 Контакты NBM Japan:\n\n"
             "📱 WhatsApp: +996 XXX XXX XXX\n"
             "📱 Telegram: @nbm_japan_support\n"
@@ -178,21 +269,31 @@ def handle_all_messages(message):
             "💬 Напишите нам для:\n"
             "• Оформления заказа\n"
             "• Отслеживания посылки\n"
-            "• Консультации по товарам")
+            "• Консультации по товарам",
+            reply_markup=create_keyboard()
+        )
         
     elif text == "Помощь":
-        bot.send_message(message.chat.id, 
+        bot.send_message(
+            message.chat.id, 
             "ℹ️ NBM Japan - карго доставка из Японии\n\n"
             "🔹 Регистрация клиента - зарегистрироваться в системе\n"
             "🔹 Мой профиль - информация о вашем аккаунте\n"
+            "🔹 Проверить статус - узнать статус вашего заказа\n"
             "🔹 Связаться с нами - контакты для заказов\n\n"
             "📦 Услуги:\n"
             "• Покупка товаров в японских интернет-магазинах\n"
             "• Консолидация посылок\n"
             "• Быстрая доставка в Кыргызстан\n"
-            "• Страхование грузов")
+            "• Страхование грузов",
+            reply_markup=create_keyboard()
+        )
     else:
-        bot.send_message(message.chat.id, f"🤖 Используйте кнопки меню для навигации\n\nВы написали: {text}")
+        bot.send_message(
+            message.chat.id, 
+            "🤖 Используйте кнопки меню для навигации", 
+            reply_markup=create_keyboard()
+        )
 
 # Вебхук
 @app.route('/webhook', methods=['POST'])
