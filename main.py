@@ -262,10 +262,11 @@ def handle_all_messages(message):
         bot.send_message(
             message.chat.id, 
             "📞 Контакты NBM Japan:\n\n"
-            "📱 WhatsApp: +996 XXX XXX XXX\n"
-            "📱 Telegram: @nbm_japan_support\n"
-            "📧 Email: info@nbmjapan.kg\n\n"
-            "🕐 Время работы: 9:00 - 18:00 (ПН-СБ)\n\n"
+            "📱 WhatsApp: +81 90-9542-7552\n"
+            "📱 WhatsApp: +996 778 56 27 36\n"
+            "📱 Telegram: @aitakma\n"
+            "📧 Email: info@nbmjapan.com\n\n"
+            "🕐 Время работы: 9:00 - 18:00 (ПН-ПТ)\n\n"
             "💬 Напишите нам для:\n"
             "• Оформления заказа\n"
             "• Отслеживания посылки\n"
